@@ -33,14 +33,19 @@ jobs:
       - name: Run unit tests
         run: ./gradlew testStableDebugUnitTest
 
-      - name: Build release APK
-        run: ./gradlew assembleStableRelease
+      - name: Build APKs
+        # stableRelease validates the release variant compiles; stableDebug is
+        # debug-signed and therefore actually installable on devices (an unsigned
+        # release APK is rejected by Android's package installer).
+        run: ./gradlew assembleStableDebug assembleStableRelease
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cs-nerf-release-apk
-          path: app/build/outputs/apk/stable/release/*.apk
+          name: cs-nerf-apks
+          path: |
+            app/build/outputs/apk/stable/debug/*.apk
+            app/build/outputs/apk/stable/release/*.apk
 
       - name: Publish release
         uses: marvinpinto/action-automatic-releases@latest
@@ -48,5 +53,5 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           automatic_release_tag: nerf-release
           prerelease: false
-          title: cs-nerf Release Build
-          files: app/build/outputs/apk/stable/release/*.apk
+          title: cs-nerf Installable Build
+          files: app/build/outputs/apk/stable/debug/*.apk
