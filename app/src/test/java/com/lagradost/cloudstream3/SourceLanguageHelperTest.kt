@@ -48,7 +48,7 @@ class SourceLanguageHelperTest {
         assertFalse(SourceLanguageHelper.matchesSource(null, null, "te"))
     }
 
-    data class FakeLink(val source: String?, val name: String?)
+    data class FakeLink(val source: String?, val name: String?, val url: String? = null)
 
     @Test
     fun `rank puts preferred language first and keeps fallback`() {
@@ -58,7 +58,9 @@ class SourceLanguageHelperTest {
             FakeLink("Telugu HD", "1080p"),
             FakeLink("Tamil HD", "1080p"),
         )
-        val ranked = SourceLanguageHelper.rankByLanguage(links, "te") { it.source to it.name }
+        val ranked = SourceLanguageHelper.rankByLanguage(links, "te") {
+            Triple(it.source, it.name, it.url)
+        }
         assertEquals("Telugu HD", ranked.first().source)
         // All others preserved (preference, not restriction).
         assertEquals(4, ranked.size)
@@ -73,7 +75,9 @@ class SourceLanguageHelperTest {
             FakeLink("English HD", "1080p"),
             FakeLink("Hindi HD", "1080p"),
         )
-        val ranked = SourceLanguageHelper.rankByLanguage(links, "te") { it.source to it.name }
+        val ranked = SourceLanguageHelper.rankByLanguage(links, "te") {
+            Triple(it.source, it.name, it.url)
+        }
         assertEquals(links, ranked)
     }
 
@@ -83,8 +87,48 @@ class SourceLanguageHelperTest {
             FakeLink("Telugu HD", "1080p"),
             FakeLink("English HD", "1080p"),
         )
-        assertEquals(links, SourceLanguageHelper.rankByLanguage(links, null) { it.source to it.name })
-        assertEquals(links, SourceLanguageHelper.rankByLanguage(links, "") { it.source to it.name })
+        assertEquals(links, SourceLanguageHelper.rankByLanguage(links, null) {
+            Triple(it.source, it.name, it.url)
+        })
+        assertEquals(links, SourceLanguageHelper.rankByLanguage(links, "") {
+            Triple(it.source, it.name, it.url)
+        })
+    }
+
+    @Test
+    fun `rank matches language slug in stream url`() {
+        val links = listOf(
+            FakeLink("Server 1", "1080p", "https://cdn.example.com/hindi/1080p/index.m3u8"),
+            FakeLink("Server 2", "1080p", "https://cdn.example.com/telugu/1080p/index.m3u8"),
+        )
+        val ranked = SourceLanguageHelper.rankByLanguage(links, "te") {
+            Triple(it.source, it.name, it.url)
+        }
+        assertEquals("Server 2", ranked.first().source)
+        assertEquals(2, ranked.size)
+    }
+
+    @Test
+    fun `url tokens do not false positive`() {
+        // Generic path segments must not match a language preference.
+        assertFalse(
+            SourceLanguageHelper.matchesLink(
+                "Server 1", "1080p",
+                "https://cdn.example.com/video/note-720p/index.m3u8", "te"
+            )
+        )
+        assertFalse(
+            SourceLanguageHelper.matchesLink(
+                "Server 1", "1080p",
+                "https://cdn.example.com/hindi/1080p/index.m3u8", "te"
+            )
+        )
+        assertTrue(
+            SourceLanguageHelper.matchesLink(
+                "Server 1", "1080p",
+                "https://cdn.example.com/telugu/1080p/index.m3u8", "te"
+            )
+        )
     }
 
     data class FakeAudio(val language: String?, val label: String?)

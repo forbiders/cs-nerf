@@ -64,11 +64,34 @@ object SourceLanguageHelper {
      * Blank preference or unresolvable inputs return false (caller falls back).
      */
     fun matchesSource(source: String?, name: String?, preferredTag: String?): Boolean {
+        return matchesLink(source, name, null, preferredTag)
+    }
+
+    /**
+     * Same as [matchesSource] but also matches language slugs in the stream [url]
+     * (e.g. ".../telugu/1080p/index.m3u8"). URL tokens must resolve to a *known*
+     * language equal to the preference, so random path segments never match.
+     */
+    fun matchesLink(
+        source: String?,
+        name: String?,
+        url: String?,
+        preferredTag: String?
+    ): Boolean {
         val pref = normalizedPreference(preferredTag) ?: return false
         val candidates = listOf(source, name).filter { !it.isNullOrBlank() }.map { it!!.trim() }
-        if (candidates.isEmpty()) return false
         for (candidate in candidates) {
             val tag = normalizeToBaseTag(candidate) ?: continue
+            if (tag.equals(pref, ignoreCase = true)) return true
+        }
+        if (url.isNullOrBlank()) return false
+        // Tokenize host+path (skip query): each token must itself be a known
+        // language tag equal to the preference.
+        val urlNoQuery = url.substringBefore('?').substringBefore('#')
+        val tokens = urlNoQuery.split(Regex("[^A-Za-z\\u00C0-\\u1FFF\\u2C00-\\uD7FF]+"))
+            .filter { it.length >= 2 }
+        for (token in tokens) {
+            val tag = normalizeToBaseTag(token) ?: continue
             if (tag.equals(pref, ignoreCase = true)) return true
         }
         return false
@@ -81,14 +104,14 @@ object SourceLanguageHelper {
     fun <T> rankByLanguage(
         items: List<T>,
         preferredTag: String?,
-        textOf: (T) -> Pair<String?, String?>
+        textOf: (T) -> Triple<String?, String?, String?>
     ): List<T> {
         val pref = normalizedPreference(preferredTag) ?: return items
         if (items.isEmpty()) return items
         var anyMatch = false
         for (item in items) {
-            val (source, name) = textOf(item)
-            if (matchesSource(source, name, pref)) {
+            val (source, name, url) = textOf(item)
+            if (matchesLink(source, name, url, pref)) {
                 anyMatch = true
                 break
             }
@@ -97,8 +120,8 @@ object SourceLanguageHelper {
         val matching = ArrayList<T>(items.size)
         val rest = ArrayList<T>(items.size)
         for (item in items) {
-            val (source, name) = textOf(item)
-            if (matchesSource(source, name, pref)) matching.add(item) else rest.add(item)
+            val (source, name, url) = textOf(item)
+            if (matchesLink(source, name, url, pref)) matching.add(item) else rest.add(item)
         }
         return matching + rest
     }

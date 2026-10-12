@@ -2415,7 +2415,27 @@ class GeneratorPlayer : FullScreenPlayer() {
                                 QualityDataHelper.AUTO_SKIP_PRIORITY
                     }
                 ) {
-                    startPlayer()
+                    // With a preferred source language set, do not auto-start on the
+                    // first arrivals: with ~100 sources loading progressively the
+                    // preferred (e.g. Telugu) links often arrive later. Wait until a
+                    // matching link arrives or loading finishes (fallback), so the
+                    // auto-pick in startPlayer() actually lands on the preference.
+                    // The skip-loading button stays available for manual start.
+                    val pref = getPreferredSourceLanguage()
+                    val state = viewModel.state
+                    val shouldWaitForLanguage = !pref.isNullOrBlank() &&
+                            state.loading is Resource.Loading &&
+                            state.links.none { (link, uri) ->
+                                SourceLanguageHelper.matchesLink(
+                                    link?.source,
+                                    link?.name ?: uri?.name,
+                                    link?.url,
+                                    pref
+                                )
+                            }
+                    if (!shouldWaitForLanguage) {
+                        startPlayer()
+                    }
                 }
             }
 

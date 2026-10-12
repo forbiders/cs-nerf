@@ -115,8 +115,8 @@ data class VideoState(
             preferredLanguageTag
         ) { displayLink ->
             val link = displayLink.link.first
-            val uriName = displayLink.link.second?.name
-            (link?.source) to (link?.name ?: uriName)
+            val uri = displayLink.link.second
+            Triple(link?.source, link?.name ?: uri?.name, link?.url)
         }
     }
 
