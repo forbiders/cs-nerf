@@ -211,6 +211,20 @@ android {
         }
     }
 
+    splits {
+        abi {
+            // Per-ABI APKs so old/low-end devices download only their native
+            // libraries (arm64-v8a for 64-bit, armeabi-v7a for 32-bit).
+            // Each split is much smaller than the old universal APK.
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a")
+            // No universal fallback: install the split matching your device.
+            // arm64-v8a suits most modern phones/TVs, armeabi-v7a suits older 32-bit ones.
+            isUniversalApk = false
+        }
+    }
+
     namespace = "com.lagradost.cloudstream3"
 }
 
