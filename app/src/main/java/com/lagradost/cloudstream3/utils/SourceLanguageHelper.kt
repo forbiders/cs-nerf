@@ -39,9 +39,15 @@ object SourceLanguageHelper {
     fun normalizeToBaseTag(input: String?): String? {
         if (input.isNullOrBlank()) return null
         val trimmed = input.trim()
-        // Direct code path first (handles "te", "tel", "te-IN").
+        // Direct code path first (handles "te", "tel").
         val viaCode = fromCodeToLangTagIETF(trimmed)?.let { baseTag(it) }
         if (viaCode != null) return viaCode
+        // Region-subtag path ("te-IN" -> base "te"), only when the base itself
+        // is a known language code, so free text never false-positives.
+        val viaBase = baseTag(trimmed)?.takeIf { it != trimmed.lowercase() }?.let { base ->
+            fromCodeToLangTagIETF(base)?.let { baseTag(it) }
+        }
+        if (viaBase != null) return viaBase
         // Name / phrase path with halfMatch (handles "Telugu", "తెలుగు", "HD Telugu 1080p").
         val viaName = fromLanguageToTagIETF(trimmed, true)?.let { baseTag(it) }
         if (viaName != null) return viaName
